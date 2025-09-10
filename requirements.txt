@@ -1,0 +1,13 @@
+pandas
+requests
+qdrant-client
+gradio
+numpy
+torch
+torchvision
+facenet-pytorch
+Pillow
+scikit-learn
+tqdm
+matplotlib
+pyyaml

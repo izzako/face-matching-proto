@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Custom
+facescrub_metadata.csv
+a_images/
+b_database/
+log/
+sandbox.ipynb

@@ -1,0 +1,22 @@
+DOWNLOADER:
+  MAX_WORKERS: 8 # Number of parallel downloads -> depends on your CPU cores
+
+DIRECTORIES:
+  IMAGE_DIR: a_images
+  DATABASE_DIR: b_database
+  CSV_FILE: facescrub_metadata.csv
+  LOG_DIR: log
+
+DATABASE:
+  QDRANT_PATH: qdrant_db
+  COLLECTION_NAME: facescrub_faces
+
+MODEL:
+  MODEL_IMAGE_SIZE: 160 # DONT CHANGE
+  resnet: InceptionResnetV1 # DONT CHANGE
+  EMBEDDING_DIM: 512 # DONT CHANGE
+  device: cpu
+
+APP:
+  DUPLICATE_THRESHOLD: 1.14
+  EVAL_NUM_PAIRS: 500

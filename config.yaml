@@ -21,4 +21,4 @@ MODEL:
 
 APP:
   DUPLICATE_THRESHOLD: 0.55 # 1: identical, 0: totally different
-  EVAL_NUM_PAIRS: 1000
+  EVAL_NUM_PAIRS: 2000

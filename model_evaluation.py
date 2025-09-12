@@ -157,7 +157,7 @@ def main():
     plt.xlabel('Threshold')
     plt.ylabel('Accuracy')
     plt.grid(True)
-    plt.axvline(x=best_threshold, color='r', linestyle='--', label=f'Best Threshold ({best_threshold:.2f})')
+    plt.axvline(x=best_threshold, color='r', linestyle='--', label=f'Threshold ({best_threshold:.2f})')
     plt.legend()
 
     # 2. ROC Curve

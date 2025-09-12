@@ -1,0 +1,26 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# vscode
+.vscode
+
+# Ignore virtual envs
+venv/
+.env/
+
+# Ignore git files
+.git/
+.gitignore
+
+# Common
+README.MD
+docker-compose.yml
+dockerfile
+
+# Ignore custom folders and files
+a_images/
+b_database/
+c_upload/
+log/
+sandbox.ipynb

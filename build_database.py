@@ -21,13 +21,15 @@ s_log = partial(cu.simple_log, LOG_FILE)
 
 
 def main():
+    #refresh_new
+    if os.path.isfile(LOG_FILE):
+        os.remove(LOG_FILE)
+        
+    # Initialize Qdrant client. This will create a local, file-based DB.
     if not os.path.exists(DATABASE_DIR):
         os.makedirs(DATABASE_DIR)
         s_log(f"Created directory: {DATABASE_DIR}")
 
-    if os.path.isfile(LOG_FILE):
-        os.remove(LOG_FILE)
-    # Initialize Qdrant client. This will create a local, file-based DB.
     client = QdrantClient(path=QDRANT_PATH)
 
     # Get the embedding dimension from the model

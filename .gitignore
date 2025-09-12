@@ -210,5 +210,6 @@ __marimo__/
 facescrub_metadata.csv
 a_images/
 b_database/
+c_upload/
 log/
 sandbox.ipynb

@@ -2,17 +2,18 @@ Face Matching MVP for Duplicate Account Detection
 -------------------------------------------------
 This project is a Minimum Viable Product (MVP) for a system that detects duplicate user accounts by matching faces from selfies against a database of existing users.
 
-It uses the FaceNet (InceptionResNetV1) for the image embbedings, FAISS for efficient similarity search in a vector database, Gradio for the web interface, and Docker for containerization.
+It uses the FaceNet (InceptionResNetV1) for the image embbedings, Qdrant client as vector database, Gradio for the web interface, and Docker for the containerization.
 
 # Project Structure
 ```
 .
 ├── a_images/              # Directory for downloaded face images
-├── b_database/            # Directory for the FAISS index and metadata
+├── b_database/            # Directory for the vector database and metadata
 ├── app.py                 # The main Gradio web application
-├── build_database.py      # Script to create face embeddings and the FAISS index
-├── image_downloader.py     # Script to download images from the CSV
-├── model_evaluation.py    # Script to evaluate choosen model
+├── build_database.py      # Script to create face embeddings and the populate the database
+├── config.yaml            # Generall app config file
+├── image_downloader.py    # Script to download images from the CSV
+├── model_evaluation.py    # Script to evaluate model and choose threshold
 ├── facescrub_metadata.csv # The original metadata file (provided)
 ├── Dockerfile             # Docker configuration for deployment
 └── requirements.txt       # Python dependencies
@@ -41,7 +42,7 @@ Run the download script. This will populate the `a_images` directory. It might t
 python image_downloader.py
 ```
 ### Step 3: Build the Vector Database
-This script processes the images, creates face embeddings, and saves a FAISS index in the `b_database` directory.
+This script processes the images, creates face embeddings, and saves it to Qdrant in the `b_database` directory.
 
 ```
 python build_database.py

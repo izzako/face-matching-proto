@@ -1,9 +1,7 @@
-import torch
-from facenet_pytorch import InceptionResnetV1
+
 import numpy as np
 import pandas as pd
 import os
-from PIL import Image
 import random
 from sklearn.metrics import roc_curve, auc
 from tqdm import tqdm
@@ -17,45 +15,20 @@ CSV_FILE = cu.config['DIRECTORIES']['CSV_FILE']
 IMAGE_DIR = cu.config['DIRECTORIES']['IMAGE_DIR']
 NUM_PAIRS = cu.config['APP']['EVAL_NUM_PAIRS'] # Number of each genuine and imposter pairs to test.
 
-# --- Model & Device Setup ---
-device = torch.device(cu.config['MODEL']['device'])
-resnet = InceptionResnetV1(pretrained='vggface2', device=device).eval()
-print("FaceNet model loaded successfully on CPU.")
-
-
-def get_embedding(image_path, bbox):
-    """Generates a FaceNet embedding for a given image file using a predefined bounding box."""
-    if bbox is None:
-        return None
-    try:
-        img = Image.open(image_path).convert('RGB')
-        face_img = img.crop(bbox)
-        face_tensor = cu.preprocess(face_img).to(device)
-        
-        with torch.no_grad():
-            embedding = resnet(face_tensor.unsqueeze(0))
-        return cu.normalize_embedding(embedding.detach().cpu().numpy().flatten())
-    except Exception as e:
-        print(f"Error processing {image_path}: {e}")
-        return None
-
 def generate_evaluation_pairs(df, image_dir, num_pairs):
     """Generates balanced genuine and imposter pairs based on available images."""
-    # 1. Create a lookup for bboxes from the DataFrame
-    df['lookup_key'] = df['name'].str.replace(' ', '_') + '_' + df['image_id'].astype(str)
-    bbox_lookup = df.set_index('lookup_key')['bbox'].to_dict()
 
-    # 2. Scan available images and group them by person
+    bbox_lookup = df.set_index('filename')['bbox'].to_dict()
+
+    # 1. Scan available images and group them by person
     person_to_images = {}
-    image_files = [f for f in os.listdir(image_dir) if f.endswith('.jpg')]
-    for filename in image_files:
+    for _,row in df.iterrows():
         try:
-            # Filename is like 'Name_Lastname_imageid.jpg'
-            parts = filename.rsplit('_', 1)
-            name = parts[0].replace('_', ' ')
+            # Filename is like 'Name_Lastname_imageid_face_id.jpg'
+            name = row['name']
             if name not in person_to_images:
                 person_to_images[name] = []
-            person_to_images[name].append(filename)
+            person_to_images[name].append(row['filename'])
         except IndexError:
             continue # Skip malformed filenames
 
@@ -79,8 +52,8 @@ def generate_evaluation_pairs(df, image_dir, num_pairs):
         path1 = os.path.join(image_dir, file1)
         path2 = os.path.join(image_dir, file2)
         
-        bbox1_str = bbox_lookup.get(os.path.splitext(file1)[0])
-        bbox2_str = bbox_lookup.get(os.path.splitext(file2)[0])
+        bbox1_str = bbox_lookup.get(file1)
+        bbox2_str = bbox_lookup.get(file2)
         
         if bbox1_str and bbox2_str:
             genuine_pairs.append(((path1, bbox1_str), (path2, bbox2_str)))
@@ -101,24 +74,21 @@ def generate_evaluation_pairs(df, image_dir, num_pairs):
         path1 = os.path.join(image_dir, file1)
         path2 = os.path.join(image_dir, file2)
         
-        bbox1_str = bbox_lookup.get(os.path.splitext(file1)[0])
-        bbox2_str = bbox_lookup.get(os.path.splitext(file2)[0])
+        bbox1_str = bbox_lookup.get(file1)
+        bbox2_str = bbox_lookup.get(file2)
         
         if bbox1_str and bbox2_str:
             imposter_pairs.append(((path1, bbox1_str), (path2, bbox2_str)))
             
     return genuine_pairs, imposter_pairs
 
-
 # --- Main Evaluation Logic ---
 def main():
     try:
         df = pd.read_csv(CSV_FILE)
-
-        # Filter out images that are not available
-        available_df = pd.DataFrame([( ' '.join(i.split('_')[:-1]),int(i.split('_')[-1].rstrip('.jpg')),i) 
-              for i in os.listdir(IMAGE_DIR) if i.endswith('.jpg')],columns=['name','image_id','image_path'])
-        df = available_df.merge(df[['name','image_id','bbox']],on=['name','image_id'],how='inner').drop_duplicates('image_path')
+        df['filename'] = df['name'].str.replace(' ','_') + '_' + df['image_id'].astype(str) + '_' + df['face_id'].astype(str) + '.jpg'
+        # filter to available image only
+        df = df[df['filename'].isin([i for i in os.listdir(IMAGE_DIR) if i.endswith('.jpg')])].copy()
 
         print(f'There are {len(df)} images available for evaluation.'.format(len(df)))
     except FileNotFoundError:
@@ -136,19 +106,19 @@ def main():
 
     print(f"\nCalculating distances for {NUM_PAIRS} genuine pairs...")
     for _, ((path1, bbox1_str), (path2, bbox2_str)) in tqdm(enumerate(genuine_pairs),total=NUM_PAIRS):
-        emb1 = get_embedding(path1, cu.parse_bbox(bbox1_str))
-        emb2 = get_embedding(path2, cu.parse_bbox(bbox2_str))
+        emb1,_ = cu.get_embedding(path1, cu.parse_bbox(bbox1_str))
+        emb2,_ = cu.get_embedding(path2, cu.parse_bbox(bbox2_str))
         if emb1 is not None and emb2 is not None:
-            dist = np.linalg.norm(emb1 - emb2)
+            dist = cu.cosine_similarity(emb1, emb2)
             distances.append(dist)
             labels.append(1)
 
     print(f"\nCalculating distances for {NUM_PAIRS} imposter pairs...")
     for _, ((path1, bbox1_str), (path2, bbox2_str)) in tqdm(enumerate(imposter_pairs),total=NUM_PAIRS):
-        emb1 = get_embedding(path1, cu.parse_bbox(bbox1_str))
-        emb2 = get_embedding(path2, cu.parse_bbox(bbox2_str))
+        emb1,_ = cu.get_embedding(path1, cu.parse_bbox(bbox1_str))
+        emb2,_ = cu.get_embedding(path2, cu.parse_bbox(bbox2_str))
         if emb1 is not None and emb2 is not None:
-            dist = np.linalg.norm(emb1 - emb2)
+            dist = cu.cosine_similarity(emb1,emb2)
             distances.append(dist)
             labels.append(0)
         
@@ -160,13 +130,13 @@ def main():
         return
 
     # --- Calculate Metrics ---
-    thresholds = np.arange(0, 2, 0.01)
+    thresholds = np.arange(-1, 1, 0.05)
     accuracies = []
     best_accuracy = 0
     best_threshold = 0
 
     for threshold in tqdm(thresholds,desc='Checking thresholds'):
-        predictions = (distances <= threshold).astype(int) # Lower distances means more similar
+        predictions = (distances >= threshold).astype(int) # higher distance means more similar
         accuracy = np.mean(predictions == labels)
         accuracies.append(accuracy)
         if accuracy > best_accuracy:
@@ -175,24 +145,27 @@ def main():
             
     print("\n--- Evaluation Results ---")
     print(f"Best Accuracy: {best_accuracy:.4f} at Threshold: {best_threshold:.2f}")
-    print("This threshold value is a good candidate for DUPLICATE_THRESHOLD in app.py.")
+    print("This threshold value is a good candidate for DUPLICATE_THRESHOLD in config.yaml")
 
     # --- Plotting ---
-    plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
+    plt.figure(figsize=(18, 5))
+
+    # 1. Accuracy vs Threshold
+    plt.subplot(1, 3, 2)
     plt.plot(thresholds, accuracies)
-    plt.title('Accuracy vs. Distance Threshold')
+    plt.title('Accuracy vs. Threshold')
     plt.xlabel('Threshold')
     plt.ylabel('Accuracy')
     plt.grid(True)
     plt.axvline(x=best_threshold, color='r', linestyle='--', label=f'Best Threshold ({best_threshold:.2f})')
     plt.legend()
 
-    fpr, tpr, _ = roc_curve(labels, -distances) 
+    # 2. ROC Curve
+    fpr, tpr, _ = roc_curve(labels, distances) 
     roc_auc = auc(fpr, tpr)
 
-    plt.subplot(1, 2, 2)
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.2f})')
+    plt.subplot(1, 3, 3)
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
@@ -200,6 +173,19 @@ def main():
     plt.ylabel('True Positive Rate')
     plt.title('Receiver Operating Characteristic (ROC)')
     plt.legend(loc="lower right")
+    plt.grid(True)
+
+    # 3. Histogram of similarities
+    plt.subplot(1, 3, 1)
+    genuine = distances[labels == 1]
+    impostor = distances[labels == 0]
+    plt.hist(genuine, bins=50, alpha=0.6, label="Genuine (same person)")
+    plt.hist(impostor, bins=50, alpha=0.6, label="Impostor (different person)")
+    plt.axvline(best_threshold, color='red', linestyle='--', label=f'Threshold {best_threshold:.2f}')
+    plt.xlabel("Cosine Similarity")
+    plt.ylabel("Count")
+    plt.title("Distribution of Similarities")
+    plt.legend()
     plt.grid(True)
 
     plt.tight_layout()

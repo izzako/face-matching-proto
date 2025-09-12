@@ -1,10 +1,6 @@
-import torch
-from facenet_pytorch import InceptionResnetV1, fixed_image_standardization
 import numpy as np
 import os
-from PIL import Image
 import pandas as pd
-from torchvision import transforms
 from tqdm import tqdm
 from qdrant_client import QdrantClient, models
 from uuid import uuid4
@@ -21,11 +17,6 @@ LOG_FILE = os.path.join(cu.config['DIRECTORIES']['LOG_DIR'],'build_database.log'
 
 # Write log into log file 
 s_log = partial(cu.simple_log, LOG_FILE)
-
-# --- Model & Device Setup ---
-device = torch.device(cu.config['MODEL']['device'])
-resnet = InceptionResnetV1(pretrained='vggface2', device=device).eval()
-s_log("FaceNet model loaded successfully on CPU.")
 
 
 
@@ -46,7 +37,7 @@ def main():
     if not client.collection_exists(COLLECTION_NAME):
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=models.VectorParams(size=embedding_dim, distance=models.Distance.EUCLID),
+            vectors_config=models.VectorParams(size=embedding_dim, distance=models.Distance.COSINE),
         )
         s_log(f"Qdrant collection '{COLLECTION_NAME}' created/recreated successfully.")
 
@@ -54,9 +45,10 @@ def main():
         df = pd.read_csv(CSV_FILE)
 
         # Only select available (downloaded) images
-        available_df = pd.DataFrame([( ' '.join(i.split('_')[:-1]),int(i.split('_')[-1].rstrip('.jpg')),i) 
-                for i in os.listdir(IMAGE_DIR) if i.endswith('.jpg')],columns=['name','image_id','filename'])
-        df = available_df.merge(df[['name','image_id','bbox']],on=['name','image_id'],how='inner').drop_duplicates('filename')
+        df['filename'] = df['name'].str.replace(' ','_') + '_' + df['image_id'].astype(str) + '_' + df['face_id'].astype(str) + '.jpg'
+        df = df[df['filename'].isin([i for i in os.listdir(IMAGE_DIR) if i.endswith('.jpg')])].copy()
+        df['image_dir'] = IMAGE_DIR
+
     except FileNotFoundError:
         s_log(f"ERROR: The file '{CSV_FILE}' was not found.")
         return
@@ -72,30 +64,21 @@ def main():
         if bbox_str is None:
             continue
 
-        try:
-            img = Image.open(image_path).convert('RGB')
-            bbox = cu.parse_bbox(bbox_str)
-            if bbox is None:
-                continue
-            
-            face_img = img.crop(bbox)
-            face_tensor = cu.preprocess(face_img).to(device)
-            
-            with torch.no_grad():
-                embedding = resnet(face_tensor.unsqueeze(0)).detach().cpu().numpy().flatten()
-                embedding = cu.normalize_embedding(embedding)
-            
-            # Prepare the point for Qdrant
+        bbox = cu.parse_bbox(bbox_str)
+
+        embedding,error_msg = cu.get_embedding(image_path, bbox)
+        
+        if embedding is None:
+            s_log(error_msg)
+        else:
+        # Prepare the point for Qdrant
             points_to_upsert.append(
                 models.PointStruct(
                     id=str(uuid4()), # Each point needs a unique ID
                     vector=embedding.tolist(),
-                    payload=row[['name','image_id','filename']].to_dict() # Store metadata here
+                    payload=row[['image_dir','filename']].to_dict() # Store metadata here
                 )
             )
-            
-        except Exception as e:
-            s_log(f"Error processing {image_path}: {e}")
 
     if not points_to_upsert:
         s_log("No embeddings were generated. Exiting.")

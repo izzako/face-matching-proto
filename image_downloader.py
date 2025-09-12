@@ -26,8 +26,9 @@ def download_image(args):
     index, row = args
     name = row['name'].replace(' ', '_')
     image_id = row['image_id']
+    face_id = row['face_id']
     url = row['url']
-    filename = os.path.join(IMAGE_DIR, f"{name}_{image_id}.jpg")
+    filename = os.path.join(IMAGE_DIR, f"{name}_{image_id}_{face_id}.jpg")
 
     # Skip if the file already exists
     if os.path.exists(filename):
@@ -112,6 +113,8 @@ def main():
     successful_downloads = [res for res in results if res is not None]
     s_log("\n--- Download Complete ---")
     s_log(f"Successfully downloaded {len(successful_downloads)} / {len(tasks)} images.")
+    
+    # 5. Delete downloaded but broken images (cannot be opened by pillow)
     clean_broken_images(IMAGE_DIR, delete=True)
 
 if __name__ == "__main__":

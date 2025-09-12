@@ -4,8 +4,10 @@ DOWNLOADER:
 DIRECTORIES:
   IMAGE_DIR: a_images
   DATABASE_DIR: b_database
+  UPLOAD_DIR: c_upload # in case you want to save the uploaded new images
   CSV_FILE: facescrub_metadata.csv
   LOG_DIR: log
+
 
 DATABASE:
   QDRANT_PATH: qdrant_db
@@ -18,5 +20,5 @@ MODEL:
   device: cpu
 
 APP:
-  DUPLICATE_THRESHOLD: 1.14
-  EVAL_NUM_PAIRS: 500
+  DUPLICATE_THRESHOLD: 0.55 # 1: identical, 0: totally different
+  EVAL_NUM_PAIRS: 1000

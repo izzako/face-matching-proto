@@ -4,6 +4,7 @@ from facenet_pytorch import fixed_image_standardization
 import yaml
 from PIL import Image
 import torch
+import os
 from typing import Optional
 from facenet_pytorch import InceptionResnetV1
 
@@ -62,6 +63,8 @@ preprocess = transforms.Compose([
 ])
 
 # --- Simple Logging ---
+
+os.makedirs(config['DIRECTORIES']['LOG_DIR'], exist_ok=True)
 def simple_log(file :str, msg :Optional[str]):
     if msg:
         with open(file, 'a') as f:

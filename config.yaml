@@ -6,7 +6,7 @@ DIRECTORIES:
   DATABASE_DIR: b_database
   UPLOAD_DIR: c_upload # in case you want to save the uploaded new images
   CSV_FILE: facescrub_metadata.csv
-  LOG_DIR: log
+  LOG_DIR: logs
 
 
 DATABASE:

@@ -22,5 +22,6 @@ dockerfile
 a_images/
 b_database/
 c_upload/
-log/
+logs/
 sandbox.ipynb
+Model_Eval.png

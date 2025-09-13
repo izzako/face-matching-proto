@@ -67,6 +67,9 @@ Open your browser and navigate to `http://127.0.0.1:7860`.
 
 ## 2. Running with Docker
 
+### Step 0: Change the Host in the Config File
+Change the `HOST` value in the `config.yaml` file to `0.0.0.0` if you want to run the app using Docker.
+
 ### Step 1: Build the Docker Image
 Make sure you have Docker installed. The following command builds the image, which includes running the download and database-building steps inside the container.
 ```

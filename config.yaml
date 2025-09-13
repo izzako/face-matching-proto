@@ -22,3 +22,4 @@ MODEL:
 APP:
   DUPLICATE_THRESHOLD: 0.55 # 1: identical, 0: totally different
   EVAL_NUM_PAIRS: 2000
+  HOST: 127.0.0.1 # CHANGE TO 0.0.0.0 IF USING DOCKER
